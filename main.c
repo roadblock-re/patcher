@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 #include <winternl.h>
 
 uintptr_t GetSuspendedProcessBaseAddress(HANDLE hProcess) {
@@ -64,15 +65,32 @@ LPVOID AllocateNearEx(HANDLE hProcess, LPVOID targetAddress, SIZE_T size) {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
+    uintptr_t instructionRVA = 0x1D12D55; // 24.6.1a
+
+    // Find out if game executable is in the working directory
+    char cwd[16384] = {};
+
+    if (getcwd(cwd, sizeof(cwd) - 1) != NULL) {
+        fprintf(stdout, "Current working directory: %s\n", cwd);
+    }
+
+    size_t cwdLength = strlen(cwd);
+    snprintf(cwd + cwdLength, sizeof(cwd) - 1 - cwdLength, "\\Asphalt9_Steam_x64_rtl.exe");
+
+    int fileExists = access(cwd, F_OK) == 0;
+
+    const char* gamePath = 0;
+    if (argc >= 2) {
+        gamePath = argv[argc - 1];
+    } else if (fileExists) {
+        gamePath = cwd;
+    } else {
         fprintf(stderr, "Error: Game path is not specified.\n");
         return 2;
     }
 
+    // Read eve string
     char eveString[4096] = {};
-    const char* gamePath = argv[argc - 1];
-    uintptr_t instructionRVA = 0x1D12D55; // 24.6.1a
-
     FILE *fp = fopen("eve_string", "r");
     if (fp == 0) {
         fprintf(stderr, "Error opening file.\n");
