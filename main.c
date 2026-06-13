@@ -227,6 +227,9 @@ bool ScanGameVersion(char gamePath[16384], GAME_OFFSETS **offsets) {
         return false;
     }
 
+    // hack: should be a safe call.
+    fseek(fp, 0x4000000, SEEK_SET);
+
     bool foundPackageMarker = false;
     int c;
     char buf[sizeof(GAME_PKG_MARKER)] = {};
@@ -246,6 +249,7 @@ bool ScanGameVersion(char gamePath[16384], GAME_OFFSETS **offsets) {
     }
 
     memset(buf, 0, sizeof(buf));
+    int nonZeroChars = 0;
 
     const char *gameVersion = 0;
     while ((c = fgetc(fp)) != EOF) {
@@ -253,23 +257,18 @@ bool ScanGameVersion(char gamePath[16384], GAME_OFFSETS **offsets) {
         buf[sizeof(buf) - 1] = (char) c;
 
         if (c != '\0') {
+            ++nonZeroChars;
             continue;
         }
 
-        char *sp = 0;
-        for (char *p = buf; p < buf + sizeof(buf) - 1; ++p) {
-            if (*p != '\0') {
-                sp = p;
-                break;
-            }
-        }
-
-        if (sp != NULL && IsGameVersion(sp)) {
+        const char* sp = buf + sizeof(buf) - 1 - nonZeroChars;
+        if (nonZeroChars != 0 && IsGameVersion(sp)) {
             gameVersion = sp;
             break;
         }
 
         memset(buf, 0, sizeof(buf));
+        nonZeroChars = 0;
     }
 
     if (gameVersion == 0) {
