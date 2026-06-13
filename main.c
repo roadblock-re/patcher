@@ -231,13 +231,15 @@ bool ScanGameVersion(char gamePath[16384], GAME_OFFSETS **offsets) {
     fseek(fp, 0x4000000, SEEK_SET);
 
     bool foundPackageMarker = false;
-    int c;
     char buf[sizeof(GAME_PKG_MARKER)] = {};
-    while ((c = fgetc(fp)) != EOF) {
-        memmove(buf, buf + 1, sizeof(buf) - 1);
-        buf[sizeof(buf) - 1] = (char) c;
+    size_t bufLI = sizeof(buf) - 1;
 
-        if (memcmp(GAME_PKG_MARKER, buf, sizeof(buf)) == 0) {
+    int c;
+    while ((c = fgetc(fp)) != EOF) {
+        memmove(buf, buf + 1, bufLI);
+        buf[bufLI] = (char) c;
+
+        if (memcmp(buf, GAME_PKG_MARKER, sizeof(GAME_PKG_MARKER)) == 0) {
             foundPackageMarker = true;
             break;
         }
@@ -249,19 +251,23 @@ bool ScanGameVersion(char gamePath[16384], GAME_OFFSETS **offsets) {
     }
 
     memset(buf, 0, sizeof(buf));
-    int nonZeroChars = 0;
+    size_t nonZeroChars = 0;
 
     const char *gameVersion = 0;
     while ((c = fgetc(fp)) != EOF) {
-        memmove(buf, buf + 1, sizeof(buf) - 1);
-        buf[sizeof(buf) - 1] = (char) c;
+        memmove(buf, buf + 1, bufLI);
+        buf[bufLI] = (char) c;
 
         if (c != '\0') {
             ++nonZeroChars;
             continue;
         }
 
-        const char* sp = buf + sizeof(buf) - 1 - nonZeroChars;
+        if (nonZeroChars > bufLI) {
+            nonZeroChars = bufLI;
+        }
+
+        const char* sp = buf + bufLI - nonZeroChars;
         if (nonZeroChars != 0 && IsGameVersion(sp)) {
             gameVersion = sp;
             break;
