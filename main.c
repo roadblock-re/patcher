@@ -137,20 +137,16 @@ bool PatchInstructionString(HANDLE hProcess, uintptr_t gameBase, uintptr_t instr
     return true;
 }
 
-bool GetLaunchParameters(int argc, char **argv, char gamePath[16384], char eveString[16384]) {
+bool HandleGamePathArgument(int argc, char **argv, char *gamePath, size_t size) {
     if (argc >= 2) {
-        snprintf(gamePath, 16384 - 1, "%s", argv[argc - 1]);
+        snprintf(gamePath, size - 1, "%s", argv[argc - 1]);
     } else {
-        GetExecutablePath(gamePath, 16384);
+        GetExecutablePath(gamePath, size);
     }
 
     int fileExists = access(gamePath, F_OK) == 0;
     if (!fileExists) {
         fprintf(stderr, "Error: Executable file is not found.\n");
-        return false;
-    }
-
-    if (!ReadFileLine("eve_string", eveString, 16384)) {
         return false;
     }
 
@@ -303,13 +299,17 @@ int main(int argc, char **argv) {
     // first braces are game version, second are graphics API
     char windowTitle[16384] = {};
     if (!ReadFileLine("window_title", windowTitle, sizeof(windowTitle))) {
-        fprintf(stdout, "Ignoring. Using default value.\n");
         snprintf(windowTitle, sizeof(windowTitle) - 1, "%s", "Roadblock // {} // {}");
+        fprintf(stdout, "Ignoring. Using default value. (%s)\n", windowTitle);
+    }
+    char eveString[16384] = {};
+    if (!ReadFileLine("eve_string", eveString, sizeof(eveString))) {
+        snprintf(eveString, sizeof(eveString) - 1, "%s", "adamneve.crx.moe");
+        fprintf(stdout, "Ignoring. Using default value. (%s)\n", eveString);
     }
 
     char gamePath[16384] = {};
-    char eveString[16384] = {};
-    if (!GetLaunchParameters(argc, argv, gamePath, eveString)) {
+    if (!HandleGamePathArgument(argc, argv, gamePath, sizeof(gamePath))) {
         return 1;
     }
 
